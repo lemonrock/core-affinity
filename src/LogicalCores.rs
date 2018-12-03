@@ -25,6 +25,17 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogicalCores(HashSet<usize>);
 
+impl From<usize> for LogicalCores
+{
+	#[inline(always)]
+	fn from(core_index: usize) -> Self
+	{
+		let mut logical_cores = HashSet::with_capacity(1);
+		logical_cores.insert(core_index);
+		LogicalCores(logical_cores)
+	}
+}
+
 impl From<HashSet<usize>> for LogicalCores
 {
 	#[inline(always)]
