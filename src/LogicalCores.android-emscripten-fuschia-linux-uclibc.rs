@@ -4,9 +4,9 @@
 
 #[cfg(any(target_os = "android", target_os = "fuschia", target_os = "linux", target_env = "uclibc"))] use ::libc::sched_setaffinity;
 #[cfg(target_os = "emscripten")] use self::emscripten::sched_setaffinity;
-#[cfg(target_os = "linux")] use ::libc::pthread_setaffinity_np;
 #[cfg(target_os = "emscripten")] use self::emscripten::pthread_setaffinity_np;
 #[cfg(target_os = "fuschia")] use self::fuschia::pthread_setaffinity_np;
+#[cfg(target_os = "linux")] use self::linux::pthread_setaffinity_np;
 #[cfg(target_env = "uclibc")] use self::uclibc::pthread_setaffinity_np;
 use ::libc::CPU_SET;
 use ::libc::cpu_set_t;
@@ -22,7 +22,7 @@ impl LogicalCores
 	fn _set_process_affinity(&self, process_identifier: ProcessIdentifier) -> io::Result<()>
 	{
 		let cpu_set = self.as_cpu_set_t();
-		let result = unsafe { sched_setaffinity(process_identifier, Self::SizeOfCpuSetT, cpu_set) };
+		let result = unsafe { sched_setaffinity(process_identifier, Self::SizeOfCpuSetT, &cpu_set) };
 		if result == 0
 		{
 			Ok(())
@@ -74,7 +74,7 @@ impl LogicalCores
 	fn _set_thread_affinity(&self, thread_identifier: ThreadIdentifier) -> io::Result<()>
 	{
 		let cpu_set = self.as_cpu_set_t();
-		let result = unsafe { pthread_setaffinity_np(thread_identifier, Self::SizeOfCpuSetT, cpu_set) };
+		let result = unsafe { pthread_setaffinity_np(thread_identifier, Self::SizeOfCpuSetT, &cpu_set) };
 		if result == 0
 		{
 			Ok(())

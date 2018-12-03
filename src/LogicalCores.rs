@@ -152,7 +152,7 @@ impl LogicalCores
 
 	#[allow(dead_code)]
 	#[inline(always)]
-	fn error() -> io::Error
+	fn last_os_error() -> io::Error
 	{
 		io::Error::last_os_error()
 	}
