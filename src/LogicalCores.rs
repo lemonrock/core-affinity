@@ -22,11 +22,16 @@
 /// DragonFlyBSD and FreeBSD currently (as of 3rd December 2018) support 256 cores.
 ///
 /// Windows is a bit squiffy with more than 64 cores.
+///
+/// Create using one of the `From` implementations.
+///
+/// Sadly, actually getting a list of the cores the current process can use is quite tricky; a little more Linux specific information can be obtained using the `dpdk-unix` crate's `HyperThread` struct and the `libnuma-sys` crate's static field `numa_all_cpus_ptr`, which is derived from the parsing of the line starting `Cpus_allowed:` in `/proc/self/status` and capping it with the maximum CPUs in the system. Yuck!
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogicalCores(HashSet<usize>);
 
 impl From<usize> for LogicalCores
 {
+	/// From a core index.
 	#[inline(always)]
 	fn from(core_index: usize) -> Self
 	{
@@ -53,6 +58,62 @@ impl Into<HashSet<usize>> for LogicalCores
 	fn into(self) -> HashSet<usize>
 	{
 		self.0
+	}
+}
+
+impl Deref for LogicalCores
+{
+	type Target = HashSet<usize>;
+
+	#[inline(always)]
+	fn deref(&self) -> &Self::Target
+	{
+		&self.0
+	}
+}
+
+impl DerefMut for LogicalCores
+{
+	#[inline(always)]
+	fn deref_mut(&mut self) -> &mut Self::Target
+	{
+		&mut self.0
+	}
+}
+
+impl AsRef<HashSet<usize>> for LogicalCores
+{
+	#[inline(always)]
+	fn as_ref(&self) -> &HashSet<usize>
+	{
+		&self.0
+	}
+}
+
+impl AsMut<HashSet<usize>> for LogicalCores
+{
+	#[inline(always)]
+	fn as_mut(&mut self) -> &mut HashSet<usize>
+	{
+		&mut self.0
+	}
+}
+
+impl Borrow<HashSet<usize>> for LogicalCores
+{
+	#[inline(always)]
+	fn borrow(&self) -> &HashSet<usize>
+	{
+		&self.0
+	}
+}
+
+impl BorrowMut<HashSet<usize>> for LogicalCores
+{
+	#[inline(always)]
+	fn borrow_mut(&mut self) -> &mut HashSet<usize>
+	{
+		&mut self.0
 	}
 }
 

@@ -34,7 +34,11 @@
 #[cfg(unix)] use ::libc::pid_t;
 #[cfg(unix)] use ::libc::pthread_self;
 #[cfg(unix)] use ::libc::pthread_t;
+use ::std::borrow::Borrow;
+use ::std::borrow::BorrowMut;
 use ::std::collections::HashSet;
+use ::std::ops::Deref;
+use ::std::ops::DerefMut;
 use ::std::io;
 
 
