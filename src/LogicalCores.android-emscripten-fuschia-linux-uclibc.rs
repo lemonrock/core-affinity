@@ -39,7 +39,7 @@ impl LogicalCores
 		let mut cpu_set_t = Self::empty_cpu_set_t();
 		for logical_core in self.0.iter()
 		{
-			unsafe { CPU_SET(*logical_core, &mut cpu_set_t) };
+			unsafe { CPU_SET(*logical_core as usize, &mut cpu_set_t) };
 		}
 		cpu_set_t
 	}

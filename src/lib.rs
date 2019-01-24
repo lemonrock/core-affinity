@@ -4,6 +4,7 @@
 
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
+#![feature(core_intrinsics)]
 
 
 //! # cpu-affinity
@@ -27,6 +28,7 @@
 
 #[cfg(windows)] extern crate kernel32;
 #[cfg(unix)] extern crate libc;
+#[macro_use] extern crate likely;
 #[cfg(any(target_os = "ios", target_os = "macos"))] extern crate mach;
 #[cfg(windows)] extern crate winapi;
 
@@ -39,6 +41,8 @@ use ::std::borrow::BorrowMut;
 use ::std::collections::HashSet;
 use ::std::ops::Deref;
 use ::std::ops::DerefMut;
+use ::std::ops::Index;
+use ::std::ops::IndexMut;
 use ::std::io;
 
 
@@ -66,6 +70,9 @@ use ::std::io;
 #[cfg(target_env = "uclibc")] pub(crate) mod uclibc;
 
 
+include!("current_logical_core.rs");
 include!("LogicalCores.rs");
+include!("LogicalCoreIdentifier.rs");
+include!("PerLogicalCoreData.rs");
 include!("ProcessIdentifier.rs");
 include!("ThreadIdentifier.rs");

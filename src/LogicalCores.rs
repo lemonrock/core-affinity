@@ -27,13 +27,13 @@
 ///
 /// Sadly, actually getting a list of the cores the current process can use is quite tricky; a little more Linux specific information can be obtained using the `dpdk-unix` crate's `HyperThread` struct and the `libnuma-sys` crate's static field `numa_all_cpus_ptr`, which is derived from the parsing of the line starting `Cpus_allowed:` in `/proc/self/status` and capping it with the maximum CPUs in the system. Yuck!
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogicalCores(HashSet<usize>);
+pub struct LogicalCores(HashSet<LogicalCoreIdentifier>);
 
-impl From<usize> for LogicalCores
+impl From<LogicalCoreIdentifier> for LogicalCores
 {
 	/// From a core index.
 	#[inline(always)]
-	fn from(core_index: usize) -> Self
+	fn from(core_index: LogicalCoreIdentifier) -> Self
 	{
 		let mut logical_cores = HashSet::with_capacity(1);
 		logical_cores.insert(core_index);
@@ -41,10 +41,10 @@ impl From<usize> for LogicalCores
 	}
 }
 
-impl From<HashSet<usize>> for LogicalCores
+impl From<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn from(logical_cores: HashSet<usize>) -> Self
+	fn from(logical_cores: HashSet<LogicalCoreIdentifier>) -> Self
 	{
 		debug_assert_ne!(logical_cores.len(), 0, "There must be at least one logical core specified");
 
@@ -52,10 +52,10 @@ impl From<HashSet<usize>> for LogicalCores
 	}
 }
 
-impl Into<HashSet<usize>> for LogicalCores
+impl Into<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn into(self) -> HashSet<usize>
+	fn into(self) -> HashSet<LogicalCoreIdentifier>
 	{
 		self.0
 	}
@@ -63,7 +63,7 @@ impl Into<HashSet<usize>> for LogicalCores
 
 impl Deref for LogicalCores
 {
-	type Target = HashSet<usize>;
+	type Target = HashSet<LogicalCoreIdentifier>;
 
 	#[inline(always)]
 	fn deref(&self) -> &Self::Target
@@ -81,37 +81,37 @@ impl DerefMut for LogicalCores
 	}
 }
 
-impl AsRef<HashSet<usize>> for LogicalCores
+impl AsRef<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn as_ref(&self) -> &HashSet<usize>
+	fn as_ref(&self) -> &HashSet<LogicalCoreIdentifier>
 	{
 		&self.0
 	}
 }
 
-impl AsMut<HashSet<usize>> for LogicalCores
+impl AsMut<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn as_mut(&mut self) -> &mut HashSet<usize>
+	fn as_mut(&mut self) -> &mut HashSet<LogicalCoreIdentifier>
 	{
 		&mut self.0
 	}
 }
 
-impl Borrow<HashSet<usize>> for LogicalCores
+impl Borrow<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn borrow(&self) -> &HashSet<usize>
+	fn borrow(&self) -> &HashSet<LogicalCoreIdentifier>
 	{
 		&self.0
 	}
 }
 
-impl BorrowMut<HashSet<usize>> for LogicalCores
+impl BorrowMut<HashSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn borrow_mut(&mut self) -> &mut HashSet<usize>
+	fn borrow_mut(&mut self) -> &mut HashSet<LogicalCoreIdentifier>
 	{
 		&mut self.0
 	}
