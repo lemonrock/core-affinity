@@ -15,7 +15,7 @@ exclude = ["*"]
 include = ["README.md", "LICENSE", "COPYRIGHT", "src/**/*.rs", "Cargo.toml", "rustfmt.toml", "clippy.toml"]
 readme = "README.md"
 publish = true
-version = "0.2.0"
+version = "0.3.1"
 
 [dependencies]
 likely = "^0.1.0"
@@ -23,9 +23,12 @@ likely = "^0.1.0"
 [target.'cfg(unix)'.dependencies]
 libc = "^0.2.44"
 
-[target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
-mach = "^0.2.3"
-
 [target.'cfg(windows)'.dependencies]
 kernel32-sys = "^0.2.1"
 winapi = "^0.3.6"
+
+[target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
+dpdk-unix = "^0.2"
+
+[target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
+mach = "^0.2.3"

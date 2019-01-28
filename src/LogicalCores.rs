@@ -119,6 +119,83 @@ impl BorrowMut<HashSet<LogicalCoreIdentifier>> for LogicalCores
 
 impl LogicalCores
 {
+	/// Valid logical cores for the current process.
+	///
+	/// ***Only valid at start up before `sched_setaffinity()` has been called.***
+	///
+	/// Logic inspired by [libnuma](https://github.com/numactl/numactl)'s `numa_num_task_cpus()` function.
+	///
+	/// Slow as it will parse the file `/proc/self/status`.
+	#[cfg(any(target_os = "android", target_os = "linux"))]
+	pub fn valid_logical_cores_for_the_current_process() -> Self
+	{
+		#[inline(always)]
+		fn all_available_to_process_even_if_they_do_not_exist() -> BTreeSet<HyperThread>
+		{
+			let process_status_statistics = ProcPath::default().self_status().unwrap();
+			process_status_statistics.cpus_allowed_list.unwrap()
+		}
+
+		let all_available_to_process_even_if_they_do_not_exist = all_available_to_process_even_if_they_do_not_exist();
+
+		// This logic is borrowed from libnuma; internally `sysconf(_SC_NPROCESSORS_CONF)`, in musl, uses the system call `SYS_sched_getaffinity()`.
+		let number_of_logical_cores = unsafe { sysconf(_SC_NPROCESSORS_CONF) } - 1;
+		let maximum_logical_core_identifier = if unlikely!(number_of_logical_cores == 0)
+		{
+			0
+		}
+		else
+		{
+			(number_of_logical_cores - 1) as u16
+		};
+
+		let mut logical_cores = HashSet::with_capacity(number_of_logical_cores as usize);
+		for hyper_thread in all_available_to_process_even_if_they_do_not_exist.range(HyperThread::from(0) ..= HyperThread::from(maximum_logical_core_identifier))
+		{
+			let logical_core_identifier: LogicalCoreIdentifier = (*hyper_thread).into();
+			logical_cores.insert(logical_core_identifier);
+		}
+		logical_cores.shrink_to_fit();
+
+		Self(logical_cores)
+	}
+
+	/// Creates an empty set of per logical core data.
+	#[inline(always)]
+	pub fn empty_per_logical_core_data<PerLogicalCore>(&self) -> PerLogicalCoreData<PerLogicalCore>
+	{
+		PerLogicalCoreData::empty(self)
+	}
+
+	/// Creates a populated set of per logical core data.
+	#[inline(always)]
+	pub fn populate_per_logical_core_data<PerLogicalCore>(&self, constructor: impl FnMut(LogicalCoreIdentifier) -> PerLogicalCore) -> PerLogicalCoreData<PerLogicalCore>
+	{
+		PerLogicalCoreData::new(self, constructor)
+	}
+
+	/// Logical core identifier for the current thread.
+	#[cfg(any(target_os = "android", target_os = "emscripten", target_os = "fuschia", target_os = "linux"))]
+	#[inline(always)]
+	pub fn current_logical_core() -> LogicalCoreIdentifier
+	{
+		#[link_name = "c"]
+		extern "C"
+		{
+			fn sched_getcpu() -> i32;
+		}
+
+		let result = unsafe { sched_getcpu() };
+		if likely!(result != -1)
+		{
+			result as u32 as LogicalCoreIdentifier
+		}
+		else
+		{
+			panic!("sched_getcpu failed with `{:?}`", io::Error::last_os_error())
+		}
+	}
+
 	/// Is setting process affinity is supported?
 	///
 	/// Note that on emscripten and fuschia an error (`ENOSYS`) by the platform will always be returned as of the 3rd December 2018.
@@ -164,7 +241,7 @@ impl LogicalCores
 	/// * Permission is denied to change the process affinity for `process_identifier` (`EPERM`) (for example, the process isn't a child of this process);
 	/// * A CPU in the set does not exist, is offline or in some other way is unavailable to the `process_identifier` (`EINVAL`);
 	/// * `process_identifier` does not exist (`ESRCH`)
-	/// * Operating system is not yet implemented (`ENOSYS`) - typical of Emscripten and Fuschia.
+	/// * Operating system support is not yet implemented (`ENOSYS`) - typical of Emscripten and Fuschia.
 	#[inline(always)]
 	pub fn set_process_affinity(&self, process_identifier: ProcessIdentifier) -> io::Result<()>
 	{
@@ -182,14 +259,14 @@ impl LogicalCores
 
 	/// Sets the thread's logical core affinity.
 	///
-	/// This is only used as a *hint* on iOS and MacOS; it is near useless.
+	/// This is only used as a *hint* on iOS and MacOS; it is near useless on those platforms (Threads are never resident on just on core, and hence a lot of thread local opimizations (eg with clever non-blocking alogorithms) are useless).
 	///
-	/// Threads are never resident on just on core, and hence a lot of thread local opimizations (eg with clever non-blocking alogorithms) are useless.
+	/// Failure occurs if:-
 	///
 	/// * Permission is denied to change the process affinity for `process_identifier` (`EPERM`) (for example, the process isn't a child of this process);
 	/// * A CPU in the set does not exist, is offline or in some other way is unavailable to the `process_identifier` (`EINVAL`);
 	/// * `process_identifier` does not exist (`ESRCH`)
-	/// * Operating system is not yet implemented (`ENOSYS`) - typical of Emscripten and Fuschia.
+	/// * Operating system support is not yet implemented (`ENOSYS`) - typical of Emscripten and Fuschia.
 	/// * `ERANGE` - on FreeBSD, the cpu set was far too large.
 	/// * `EDEADLK` - on FreeBSD, the cpu set could not be honoured.
 	#[inline(always)]

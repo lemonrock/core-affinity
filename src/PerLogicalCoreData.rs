@@ -4,14 +4,14 @@
 
 /// Data with an item per logical core in use by the process.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PerLogicalCoreData<T>
+pub struct PerLogicalCoreData<PerLogicalCore>
 {
-	logical_cores_data: Box<[Option<T>]>,
+	logical_cores_data: Box<[Option<PerLogicalCore>]>,
 }
 
-impl<T> Deref for PerLogicalCoreData<T>
+impl<PerLogicalCore> Deref for PerLogicalCoreData<PerLogicalCore>
 {
-	type Target = [Option<T>];
+	type Target = [Option<PerLogicalCore>];
 
 	#[inline(always)]
 	fn deref(&self) -> &Self::Target
@@ -20,7 +20,7 @@ impl<T> Deref for PerLogicalCoreData<T>
 	}
 }
 
-impl<T> DerefMut for PerLogicalCoreData<T>
+impl<PerLogicalCore> DerefMut for PerLogicalCoreData<PerLogicalCore>
 {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target
@@ -29,7 +29,27 @@ impl<T> DerefMut for PerLogicalCoreData<T>
 	}
 }
 
-impl<T> PerLogicalCoreData<T>
+impl<PerLogicalCore> Index<LogicalCoreIdentifier> for PerLogicalCoreData<PerLogicalCore>
+{
+	type Output = Option<PerLogicalCore>;
+
+	#[inline(always)]
+	fn index(&self, index: LogicalCoreIdentifier) -> &Self::Output
+	{
+		self.logical_cores_data.index(index as usize)
+	}
+}
+
+impl<PerLogicalCore> IndexMut<LogicalCoreIdentifier> for PerLogicalCoreData<PerLogicalCore>
+{
+	#[inline(always)]
+	fn index_mut(&mut self, index: LogicalCoreIdentifier) -> &mut Self::Output
+	{
+		self.logical_cores_data.index_mut(index as usize)
+	}
+}
+
+impl<PerLogicalCore> PerLogicalCoreData<PerLogicalCore>
 {
 	/// Creates an empty set of logical core data.
 	#[inline(always)]
@@ -52,13 +72,13 @@ impl<T> PerLogicalCoreData<T>
 
 	/// `constructor` is called for each defined logical core in `logical_cores`; it is passed the logical core's identifier.
 	#[inline(always)]
-	pub fn new(logical_cores: &LogicalCores, mut constructor: impl FnMut(u16) -> T) -> Self
+	pub fn new(logical_cores: &LogicalCores, mut constructor: impl FnMut(LogicalCoreIdentifier) -> PerLogicalCore) -> Self
 	{
 		Self::new_internal(logical_cores, |logical_core_identifier| Some(constructor(logical_core_identifier)))
 	}
 
 	#[inline(always)]
-	fn new_internal(logical_cores: &LogicalCores, mut constructor: impl FnMut(u16) -> Option<T>) -> Self
+	fn new_internal(logical_cores: &LogicalCores, mut constructor: impl FnMut(LogicalCoreIdentifier) -> Option<PerLogicalCore>) -> Self
 	{
 		Self
 		{
@@ -80,7 +100,7 @@ impl<T> PerLogicalCoreData<T>
 						current_logical_core += 1;
 					}
 					debug_assert_eq!(current_logical_core, logical_core_identifier);
-					logical_cores_data.push(constructor(logical_core_identifier as u16));
+					logical_cores_data.push(constructor(logical_core_identifier as LogicalCoreIdentifier));
 
 					current_logical_core = logical_core_identifier + 1;
 				}
@@ -95,7 +115,7 @@ impl<T> PerLogicalCoreData<T>
 	///
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the SO_INCOMING_CPU socket option, which can map to a CPU not assigned to the process.
 	#[inline(always)]
-	pub fn get(&self, logical_core_identifier: u16) -> Option<&T>
+	pub fn get(&self, logical_core_identifier: LogicalCoreIdentifier) -> Option<&PerLogicalCore>
 	{
 		let logical_core_identifier = logical_core_identifier as usize;
 		if unlikely!(logical_core_identifier >= self.logical_cores_data.len())
@@ -109,7 +129,7 @@ impl<T> PerLogicalCoreData<T>
 	///
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the` SO_INCOMING_CPU` socket option, which can return an index for a CPU not assigned to the process.
 	#[inline(always)]
-	pub fn get_mut(&mut self, logical_core_identifier: u16) -> Option<&mut T>
+	pub fn get_mut(&mut self, logical_core_identifier: LogicalCoreIdentifier) -> Option<&mut PerLogicalCore>
 	{
 		let logical_core_identifier = logical_core_identifier as usize;
 		if unlikely!(logical_core_identifier >= self.logical_cores_data.len())
@@ -123,7 +143,7 @@ impl<T> PerLogicalCoreData<T>
 	///
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the` SO_INCOMING_CPU` socket option, which can return an index for a CPU not assigned to the process.
 	#[inline(always)]
-	pub fn get_mut_or(&mut self, logical_core_identifier: u16, default_logical_core_identifier: impl FnOnce() -> u16) -> &mut T
+	pub fn get_mut_or(&mut self, logical_core_identifier: LogicalCoreIdentifier, default_logical_core_identifier: impl FnOnce() -> LogicalCoreIdentifier) -> &mut PerLogicalCore
 	{
 		let logical_core_identifier = if unlikely!(self.get(logical_core_identifier).is_none())
 		{
@@ -139,7 +159,7 @@ impl<T> PerLogicalCoreData<T>
 
 	/// Sets the current value, discarding the old one.
 	#[inline(always)]
-	pub fn set(&mut self, logical_core_identifier: u16, value: T)
+	pub fn set(&mut self, logical_core_identifier: LogicalCoreIdentifier, value: PerLogicalCore)
 	{
 		self.logical_cores_data[logical_core_identifier as usize] = Some(value)
 	}
@@ -148,41 +168,41 @@ impl<T> PerLogicalCoreData<T>
 	///
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the SO_INCOMING_CPU socket option, which can map to a CPU not assigned to the process.
 	#[inline(always)]
-	pub fn take(&mut self, logical_core_identifier: u16) -> Option<T>
+	pub fn take(&mut self, logical_core_identifier: LogicalCoreIdentifier) -> Option<PerLogicalCore>
 	{
 		self.logical_cores_data[logical_core_identifier as usize].take()
 	}
 
 	/// Replaces the current value, returning the old one.
 	#[inline(always)]
-	pub fn replace(&mut self, logical_core_identifier: u16, value: T) -> Option<T>
+	pub fn replace(&mut self, logical_core_identifier: LogicalCoreIdentifier, value: PerLogicalCore) -> Option<PerLogicalCore>
 	{
 		self.logical_cores_data[logical_core_identifier as usize].replace(value)
 	}
 
 	/// Iterates over all entries that are not `None`.
 	#[inline(always)]
-	pub fn logical_core_indices<'a>(&'a self) -> impl Iterator<Item=u16> + 'a
+	pub fn logical_core_indices<'a>(&'a self) -> impl Iterator<Item=LogicalCoreIdentifier> + 'a
 	{
-		(0u16 .. self.logical_cores_data.len() as u16).into_iter().filter(move |potential_logical_core_index| self.get(*potential_logical_core_index).is_some())
+		(0u16 .. self.logical_cores_data.len() as LogicalCoreIdentifier).into_iter().filter(move |potential_logical_core_index| self.get(*potential_logical_core_index).is_some())
 	}
 
 	/// Maps from `T` to `V` assuming that entries with `Some()` in them are mappable.
 	///
 	/// `mapper` is called for each defined (ie is Some(T)) logical core in `logical_cores`; it is passed the logical core's identifier and the old value.
 	#[inline(always)]
-	pub fn map<V>(mut self, mut mapper: impl FnMut(u16, T) -> V) -> PerLogicalCoreData<V>
+	pub fn map<V>(mut self, mut mapper: impl FnMut(LogicalCoreIdentifier, PerLogicalCore) -> V) -> PerLogicalCoreData<V>
 	{
 		let number_of_logical_cores = self.logical_cores_data.len();
 
 		let mut mapped_logical_cores_data = Vec::with_capacity(number_of_logical_cores);
 
-		for logical_core_index in 0 .. number_of_logical_cores as u16
+		for logical_core_index in 0 .. number_of_logical_cores as LogicalCoreIdentifier
 		{
 			let v_option = match self.take(logical_core_index)
 			{
 				None => None,
-				Some(t) => Some(mapper(logical_core_index as u16, t)),
+				Some(t) => Some(mapper(logical_core_index as LogicalCoreIdentifier, t)),
 			};
 			mapped_logical_cores_data.push(v_option);
 		}
@@ -191,25 +211,5 @@ impl<T> PerLogicalCoreData<T>
 		{
 			logical_cores_data: mapped_logical_cores_data.into_boxed_slice()
 		}
-	}
-}
-
-impl<T> Index<u16> for PerLogicalCoreData<T>
-{
-	type Output = Option<T>;
-
-	#[inline(always)]
-	fn index(&self, index: u16) -> &Self::Output
-	{
-		self.logical_cores_data.index(index as usize)
-	}
-}
-
-impl<T> IndexMut<u16> for PerLogicalCoreData<T>
-{
-	#[inline(always)]
-	fn index_mut(&mut self, index: u16) -> &mut Self::Output
-	{
-		self.logical_cores_data.index_mut(index as usize)
 	}
 }

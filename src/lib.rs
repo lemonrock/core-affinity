@@ -26,6 +26,7 @@
 //! * uclibc
 
 
+#[cfg(any(target_os = "android", target_os = "linux"))] extern crate dpdk_unix;
 #[cfg(windows)] extern crate kernel32;
 #[cfg(unix)] extern crate libc;
 #[macro_use] extern crate likely;
@@ -33,11 +34,16 @@
 #[cfg(windows)] extern crate winapi;
 
 
+#[cfg(any(target_os = "android", target_os = "linux"))] use ::dpdk_unix::ProcPath;
+#[cfg(any(target_os = "android", target_os = "linux"))] use ::dpdk_unix::hyper_thread::HyperThread;
+#[cfg(any(target_os = "android", target_os = "linux"))]  use ::libc::_SC_NPROCESSORS_CONF;
 #[cfg(unix)] use ::libc::pid_t;
 #[cfg(unix)] use ::libc::pthread_self;
 #[cfg(unix)] use ::libc::pthread_t;
+#[cfg(any(target_os = "android", target_os = "linux"))]  use ::libc::sysconf;
 use ::std::borrow::Borrow;
 use ::std::borrow::BorrowMut;
+#[cfg(any(target_os = "android", target_os = "linux"))] use std::collections::BTreeSet;
 use ::std::collections::HashSet;
 use ::std::ops::Deref;
 use ::std::ops::DerefMut;
@@ -70,7 +76,6 @@ use ::std::io;
 #[cfg(target_env = "uclibc")] pub(crate) mod uclibc;
 
 
-include!("current_logical_core.rs");
 include!("LogicalCores.rs");
 include!("LogicalCoreIdentifier.rs");
 include!("PerLogicalCoreData.rs");
