@@ -35,39 +35,29 @@
 
 
 #[cfg(any(target_os = "android", target_os = "linux"))] use ::dpdk_unix::ProcPath;
+#[cfg(any(target_os = "android", target_os = "linux"))] use ::dpdk_unix::scheduling::CpuSet;
 #[cfg(any(target_os = "android", target_os = "linux"))] use ::dpdk_unix::hyper_thread::HyperThread;
-#[cfg(any(target_os = "android", target_os = "linux"))]  use ::libc::_SC_NPROCESSORS_CONF;
 #[cfg(unix)] use ::libc::pid_t;
 #[cfg(unix)] use ::libc::pthread_self;
 #[cfg(unix)] use ::libc::pthread_t;
-#[cfg(any(target_os = "android", target_os = "linux"))]  use ::libc::sysconf;
 use ::std::borrow::Borrow;
 use ::std::borrow::BorrowMut;
-#[cfg(any(target_os = "android", target_os = "linux"))] use std::collections::BTreeSet;
-use ::std::collections::HashSet;
+use ::std::collections::BTreeSet;
 use ::std::ops::Deref;
 use ::std::ops::DerefMut;
 use ::std::ops::Index;
 use ::std::ops::IndexMut;
 use ::std::io;
+use ::std::mem::transmute;
 
 
 #[cfg(target_os = "dragonfly")] pub(crate) mod dragonfly;
 
 
-#[cfg(target_os = "emscripten")] pub(crate) mod emscripten;
-
-
 #[cfg(target_os = "freebsd")] pub(crate) mod freebsd;
 
 
-#[cfg(target_os = "fuschia")] pub(crate) mod fuschia;
-
-
 #[cfg(any(target_os = "ios", target_os = "macos"))] pub(crate) mod ios_macos;
-
-
-#[cfg(target_os = "linux")] pub(crate) mod linux;
 
 
 #[cfg(target_os = "netbsd")] pub(crate) mod netbsd;

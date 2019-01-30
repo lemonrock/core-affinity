@@ -27,7 +27,7 @@
 ///
 /// Sadly, actually getting a list of the cores the current process can use is quite tricky; a little more Linux specific information can be obtained using the `dpdk-unix` crate's `HyperThread` struct and the `libnuma-sys` crate's static field `numa_all_cpus_ptr`, which is derived from the parsing of the line starting `Cpus_allowed:` in `/proc/self/status` and capping it with the maximum CPUs in the system. Yuck!
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogicalCores(HashSet<LogicalCoreIdentifier>);
+pub struct LogicalCores(BTreeSet<LogicalCoreIdentifier>);
 
 impl From<LogicalCoreIdentifier> for LogicalCores
 {
@@ -35,27 +35,44 @@ impl From<LogicalCoreIdentifier> for LogicalCores
 	#[inline(always)]
 	fn from(core_index: LogicalCoreIdentifier) -> Self
 	{
-		let mut logical_cores = HashSet::with_capacity(1);
+		let mut logical_cores = BTreeSet::new();
 		logical_cores.insert(core_index);
-		LogicalCores(logical_cores)
+		Self(logical_cores)
 	}
 }
-
-impl From<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl From<HyperThread> for LogicalCores
 {
+	/// From a core index.
 	#[inline(always)]
-	fn from(logical_cores: HashSet<LogicalCoreIdentifier>) -> Self
+	fn from(hyper_thread: HyperThread) -> Self
 	{
-		debug_assert_ne!(logical_cores.len(), 0, "There must be at least one logical core specified");
-
-		LogicalCores(logical_cores)
+		let logical_core_identifier: LogicalCoreIdentifier = hyper_thread.into();
+		Self::from(logical_core_identifier)
 	}
 }
 
-impl Into<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl From<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn into(self) -> HashSet<LogicalCoreIdentifier>
+	fn from(logical_cores: BTreeSet<LogicalCoreIdentifier>) -> Self
+	{
+		Self(logical_cores)
+	}
+}
+
+impl From<BTreeSet<HyperThread>> for LogicalCores
+{
+	#[inline(always)]
+	fn from(hyper_threads: BTreeSet<HyperThread>) -> Self
+	{
+		unsafe { transmute(hyper_threads) }
+	}
+}
+
+impl Into<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
+{
+	#[inline(always)]
+	fn into(self) -> BTreeSet<LogicalCoreIdentifier>
 	{
 		self.0
 	}
@@ -63,7 +80,7 @@ impl Into<HashSet<LogicalCoreIdentifier>> for LogicalCores
 
 impl Deref for LogicalCores
 {
-	type Target = HashSet<LogicalCoreIdentifier>;
+	type Target = BTreeSet<LogicalCoreIdentifier>;
 
 	#[inline(always)]
 	fn deref(&self) -> &Self::Target
@@ -81,37 +98,37 @@ impl DerefMut for LogicalCores
 	}
 }
 
-impl AsRef<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl AsRef<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn as_ref(&self) -> &HashSet<LogicalCoreIdentifier>
+	fn as_ref(&self) -> &BTreeSet<LogicalCoreIdentifier>
 	{
 		&self.0
 	}
 }
 
-impl AsMut<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl AsMut<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn as_mut(&mut self) -> &mut HashSet<LogicalCoreIdentifier>
+	fn as_mut(&mut self) -> &mut BTreeSet<LogicalCoreIdentifier>
 	{
 		&mut self.0
 	}
 }
 
-impl Borrow<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl Borrow<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn borrow(&self) -> &HashSet<LogicalCoreIdentifier>
+	fn borrow(&self) -> &BTreeSet<LogicalCoreIdentifier>
 	{
 		&self.0
 	}
 }
 
-impl BorrowMut<HashSet<LogicalCoreIdentifier>> for LogicalCores
+impl BorrowMut<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 {
 	#[inline(always)]
-	fn borrow_mut(&mut self) -> &mut HashSet<LogicalCoreIdentifier>
+	fn borrow_mut(&mut self) -> &mut BTreeSet<LogicalCoreIdentifier>
 	{
 		&mut self.0
 	}
@@ -129,35 +146,7 @@ impl LogicalCores
 	#[cfg(any(target_os = "android", target_os = "linux"))]
 	pub fn valid_logical_cores_for_the_current_process() -> Self
 	{
-		#[inline(always)]
-		fn all_available_to_process_even_if_they_do_not_exist() -> BTreeSet<HyperThread>
-		{
-			let process_status_statistics = ProcPath::default().self_status().unwrap();
-			process_status_statistics.cpus_allowed_list.unwrap()
-		}
-
-		let all_available_to_process_even_if_they_do_not_exist = all_available_to_process_even_if_they_do_not_exist();
-
-		// This logic is borrowed from libnuma; internally `sysconf(_SC_NPROCESSORS_CONF)`, in musl, uses the system call `SYS_sched_getaffinity()`.
-		let number_of_logical_cores = unsafe { sysconf(_SC_NPROCESSORS_CONF) } - 1;
-		let maximum_logical_core_identifier = if unlikely!(number_of_logical_cores == 0)
-		{
-			0
-		}
-		else
-		{
-			(number_of_logical_cores - 1) as u16
-		};
-
-		let mut logical_cores = HashSet::with_capacity(number_of_logical_cores as usize);
-		for hyper_thread in all_available_to_process_even_if_they_do_not_exist.range(HyperThread::from(0) ..= HyperThread::from(maximum_logical_core_identifier))
-		{
-			let logical_core_identifier: LogicalCoreIdentifier = (*hyper_thread).into();
-			logical_cores.insert(logical_core_identifier);
-		}
-		logical_cores.shrink_to_fit();
-
-		Self(logical_cores)
+		Self::from(HyperThread::valid_hyper_threads_for_the_current_process(&ProcPath::default()))
 	}
 
 	/// Creates an empty set of per logical core data.
@@ -174,26 +163,31 @@ impl LogicalCores
 		PerLogicalCoreData::new(self, constructor)
 	}
 
+	/// Sets thread affinity to just the `logical_core_identifier`.
+	///
+	/// Not the same as `pthread_sched_getaffinity()`.
+	#[inline(always)]
+	pub fn set_current_thread_affinity_for_only_logical_core(logical_core_identifier: LogicalCoreIdentifier) -> Result<(), io::Error>
+	{
+		Self::from(logical_core_identifier).set_current_thread_affinity()
+	}
+
+	/// Set of logical cores (1) for the current thread.
+	///
+	/// Not the same as `pthread_sched_getaffinity()`.
+	#[cfg(any(target_os = "android", target_os = "emscripten", target_os = "fuschia", target_os = "linux"))]
+	#[inline(always)]
+	pub fn for_current_logical_core() -> Self
+	{
+		Self::from(Self::current_logical_core())
+	}
+
 	/// Logical core identifier for the current thread.
 	#[cfg(any(target_os = "android", target_os = "emscripten", target_os = "fuschia", target_os = "linux"))]
 	#[inline(always)]
 	pub fn current_logical_core() -> LogicalCoreIdentifier
 	{
-		#[link_name = "c"]
-		extern "C"
-		{
-			fn sched_getcpu() -> i32;
-		}
-
-		let result = unsafe { sched_getcpu() };
-		if likely!(result != -1)
-		{
-			result as u32 as LogicalCoreIdentifier
-		}
-		else
-		{
-			panic!("sched_getcpu failed with `{:?}`", io::Error::last_os_error())
-		}
+		HyperThread::current_hyper_thread().into()
 	}
 
 	/// Is setting process affinity is supported?

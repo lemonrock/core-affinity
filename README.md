@@ -15,6 +15,8 @@ CPU affinity for processes and threads across many platforms and Operating Syste
 * OpenBSD (does nothing)
 * Windows
 
+Provides logic for finding out the valid set of logical cores (hyper threads) for a process, managing per-logical-core data sets, and more.
+
 
 ## Licensing
 
