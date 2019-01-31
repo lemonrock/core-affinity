@@ -130,7 +130,7 @@ impl<PerLogicalCore> PerLogicalCoreData<PerLogicalCore>
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the` SO_INCOMING_CPU` socket option, which can return an index for a CPU not assigned to the process.
 	#[cfg(any(target_os = "android", target_os = "linux"))]
 	#[inline(always)]
-	pub fn get_or_current(&mut self, logical_core_identifier: LogicalCoreIdentifier) -> &PerLogicalCore
+	pub fn get_or_current(&self, logical_core_identifier: LogicalCoreIdentifier) -> &PerLogicalCore
 	{
 		self.get_or(logical_core_identifier, LogicalCores::current_logical_core)
 	}
@@ -139,7 +139,7 @@ impl<PerLogicalCore> PerLogicalCoreData<PerLogicalCore>
 	///
 	/// If the logical core does not exist (or does not have assigned data), returns None; this can happen on Linux if using the` SO_INCOMING_CPU` socket option, which can return an index for a CPU not assigned to the process.
 	#[inline(always)]
-	pub fn get_or(&mut self, logical_core_identifier: LogicalCoreIdentifier, default_logical_core_identifier: impl FnOnce() -> LogicalCoreIdentifier) -> &PerLogicalCore
+	pub fn get_or(&self, logical_core_identifier: LogicalCoreIdentifier, default_logical_core_identifier: impl FnOnce() -> LogicalCoreIdentifier) -> &PerLogicalCore
 	{
 		let logical_core_identifier = if unlikely!(self.get(logical_core_identifier).is_none())
 		{
@@ -150,7 +150,7 @@ impl<PerLogicalCore> PerLogicalCoreData<PerLogicalCore>
 			logical_core_identifier as usize
 		};
 
-		unsafe { self.logical_cores_data.get_unchecked_mut(logical_core_identifier).as_mut().unwrap() }
+		unsafe { self.logical_cores_data.get_unchecked(logical_core_identifier).as_ref().unwrap() }
 	}
 
 	/// Gets the mutable data for a particular logical core.
