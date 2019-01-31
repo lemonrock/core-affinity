@@ -48,7 +48,7 @@ use ::std::ops::DerefMut;
 use ::std::ops::Index;
 use ::std::ops::IndexMut;
 use ::std::io;
-use ::std::mem::transmute;
+#[cfg(any(target_os = "android", target_os = "linux"))] use ::std::mem::transmute;
 
 
 #[cfg(target_os = "dragonfly")] pub(crate) mod dragonfly;

@@ -40,6 +40,8 @@ impl From<LogicalCoreIdentifier> for LogicalCores
 		Self(logical_cores)
 	}
 }
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
 impl From<HyperThread> for LogicalCores
 {
 	/// From a core index.
@@ -60,6 +62,7 @@ impl From<BTreeSet<LogicalCoreIdentifier>> for LogicalCores
 	}
 }
 
+#[cfg(any(target_os = "android", target_os = "linux"))]
 impl From<BTreeSet<HyperThread>> for LogicalCores
 {
 	#[inline(always)]
