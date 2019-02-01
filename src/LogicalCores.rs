@@ -247,7 +247,7 @@ impl LogicalCores
 
 	/// Sets the thread's logical core affinity.
 	///
-	/// Threads are never resident on just on core, and hence a lot of thread local opimizations (eg with clever non-blocking alogorithms) are useless.
+	/// Threads are never normally resident on just one core, and hence a lot of thread local opimizations (eg with clever non-blocking alogorithms) are useless.
 	#[inline(always)]
 	pub fn set_current_thread_affinity(&self) -> io::Result<()>
 	{
